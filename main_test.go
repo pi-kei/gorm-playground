@@ -17,27 +17,39 @@ func TestGORM(t *testing.T) {
 	projectId := uuid.Must(uuid.NewV4())
 	layouts := []models.Layout{}
 
-	sql1 := DB.ToSQL(func(tx *gorm.DB) *gorm.DB {
-		byUser := func(dbScope *gorm.DB) *gorm.DB {
-			if userId.Valid {
-				return dbScope.Where(dbScope.Where("private_for = ?", userId).Or("private_for IS NULL"))
-			}
-			return dbScope
-		}
-		return tx.Table("layouts").Scopes(byUser).Find(&layouts, map[string]any{"project_id": projectId})
-	})
-	t.Log(sql1)
+	expectedSQL := "SELECT * FROM `layouts` WHERE `layouts`.`project_id` = \"" +
+		projectId.String() + "\" AND (private_for = \"" + userId.UUID.String() + "\" OR private_for IS NULL)"
 
-	sql2 := DB.ToSQL(func(tx *gorm.DB) *gorm.DB {
-		byUser := func(dbScope *gorm.DB) *gorm.DB {
-			if userId.Valid {
-				return dbScope.Where("(private_for = ? OR private_for IS NULL)", userId)
+	t.Run("OR as function", func(t *testing.T) {
+		sql := DB.ToSQL(func(tx *gorm.DB) *gorm.DB {
+			byUser := func(dbScope *gorm.DB) *gorm.DB {
+				if userId.Valid {
+					return dbScope.Where(dbScope.Where("private_for = ?", userId).Or("private_for IS NULL"))
+				}
+				return dbScope
 			}
-			return dbScope
+			return tx.Table("layouts").Scopes(byUser).Find(&layouts, map[string]any{"project_id": projectId})
+		})
+		if sql != expectedSQL {
+			t.Errorf("Expected SQL: %v, got: %v", expectedSQL, sql)
 		}
-		return tx.Table("layouts").Scopes(byUser).Find(&layouts, map[string]any{"project_id": projectId})
 	})
-	t.Log(sql2)
+
+	t.Run("OR as raw SQL", func(t *testing.T) {
+		sql := DB.ToSQL(func(tx *gorm.DB) *gorm.DB {
+			byUser := func(dbScope *gorm.DB) *gorm.DB {
+				if userId.Valid {
+					return dbScope.Where("private_for = ? OR private_for IS NULL", userId)
+				}
+				return dbScope
+			}
+			return tx.Table("layouts").Scopes(byUser).Find(&layouts, map[string]any{"project_id": projectId})
+		})
+		if sql != expectedSQL {
+			t.Errorf("Expected SQL: %v, got: %v", expectedSQL, sql)
+		}
+	})
+
 }
 
 // func TestGORMGen(t *testing.T) {
