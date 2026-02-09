@@ -13,7 +13,7 @@ import (
 // TEST_DRIVERS: sqlite, mysql, postgres, sqlserver
 
 func TestGORM(t *testing.T) {
-	userId := uuid.Must(uuid.NewV4())
+	userId := uuid.NullUUID{Valid: true, UUID: uuid.Must(uuid.NewV4())}
 	projectId := uuid.Must(uuid.NewV4())
 	layouts := []models.Layout{}
 
@@ -26,7 +26,7 @@ func TestGORM(t *testing.T) {
 		}
 		return tx.Table("layouts").Scopes(byUser).Find(&layouts, map[string]any{"project_id": projectId})
 	})
-	t.Logf(sql1)
+	t.Log(sql1)
 
 	sql2 := DB.ToSQL(func(tx *gorm.DB) *gorm.DB {
 		byUser := func(dbScope *gorm.DB) *gorm.DB {
@@ -37,7 +37,7 @@ func TestGORM(t *testing.T) {
 		}
 		return tx.Table("layouts").Scopes(byUser).Find(&layouts, map[string]any{"project_id": projectId})
 	})
-	t.Logf(sql2)
+	t.Log(sql2)
 }
 
 // func TestGORMGen(t *testing.T) {
